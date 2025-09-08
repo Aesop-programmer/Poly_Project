@@ -74,7 +74,7 @@ def main():
 
     if args.evaluate:
         args.results_dir = '/tmp'
-    if args.save is '':
+    if args.save == '':
         args.save = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     save_path = os.path.join(args.results_dir, args.save)
     if not os.path.exists(save_path):
@@ -99,7 +99,7 @@ def main():
     model = models.__dict__[args.model]
     model_config = {'input_size': args.input_size, 'dataset': args.dataset}
 
-    if args.model_config is not '':
+    if args.model_config != '':
         model_config = dict(model_config, **literal_eval(args.model_config))
 
     model = model(**model_config)
@@ -229,7 +229,7 @@ def forward(data_loader, model, criterion, epoch=0, training=True, optimizer=Non
     for i, (inputs, target) in enumerate(data_loader):
         # measure data loading time
         data_time.update(time.time() - end)
-        if args.gpus is not None:
+        if args.gpus != None:
             target = target.cuda()
 
         if not training:
@@ -246,7 +246,7 @@ def forward(data_loader, model, criterion, epoch=0, training=True, optimizer=Non
 
 
         loss = criterion(output, target_var)
-        if type(output) is list:
+        if type(output) == list:
             output = output[0]
 
         # measure accuracy and record loss

@@ -39,7 +39,7 @@ class BasicBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
 
         self.downsample = downsample
-        self.do_bntan=do_bntan;
+        self.do_bntan=do_bntan
         self.stride = stride
 
     def forward(self, x):
@@ -69,7 +69,7 @@ class BasicBlock(nn.Module):
 class Bottleneck(nn.Module):
     expansion = 4
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
+    def __init__(self, inplanes, planes, stride=1, downsample=None,do_bntan=True):
         super(Bottleneck, self).__init__()
         self.conv1 = BinarizeConv2d(inplanes, planes, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -81,10 +81,10 @@ class Bottleneck(nn.Module):
         self.tanh = nn.Hardtanh(inplace=True)
         self.downsample = downsample
         self.stride = stride
-
+        self.do_bntan=True
     def forward(self, x):
         residual = x
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.tanh(out)
@@ -101,8 +101,8 @@ class Bottleneck(nn.Module):
 
         out += residual
         if self.do_bntan:
-            out = self.bn2(out)
-            out = self.tanh2(out)
+            out = self.bn3(out)
+            out = self.tanh(out)
 
         return out
 
@@ -152,14 +152,18 @@ class ResNet(nn.Module):
 
 class ResNet_imagenet(ResNet):
 
-    def __init__(self, num_classes=1000,
+    def __init__(self, num_classes=200,
                  block=Bottleneck, layers=[3, 4, 23, 3]):
         super(ResNet_imagenet, self).__init__()
         self.inplanes = 64
         self.conv1 = BinarizeConv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
-        self.tanh = nn.Hardtanh(inplace=True)
+        self.bn2 = nn.BatchNorm1d(512 * block.expansion)
+        self.bn3 = nn.BatchNorm1d(num_classes)
+        self.tanh1 = nn.Hardtanh(inplace=True)
+        self.tanh2 = nn.Hardtanh(inplace=True)
+
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
@@ -167,7 +171,7 @@ class ResNet_imagenet(ResNet):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.avgpool = nn.AvgPool2d(7)
         self.fc = BinarizeLinear(512 * block.expansion, num_classes)
-
+        self.logsoftmax = nn.LogSoftmax()
         init_model(self)
         self.regime = {
             0: {'optimizer': 'SGD', 'lr': 1e-1,
@@ -223,7 +227,7 @@ def resnet_binary(**kwargs):
     num_classes, depth, dataset = map(
         kwargs.get, ['num_classes', 'depth', 'dataset'])
     if dataset == 'imagenet':
-        num_classes = num_classes or 1000
+        num_classes = num_classes or 200
         depth = depth or 50
         if depth == 18:
             return ResNet_imagenet(num_classes=num_classes,

@@ -133,7 +133,7 @@ class ResNet(nn.Module):
 
 class ResNet_imagenet(ResNet):
 
-    def __init__(self, num_classes=1000,
+    def __init__(self, num_classes=200,
                  block=Bottleneck, layers=[3, 4, 23, 3]):
         super(ResNet_imagenet, self).__init__()
         self.inplanes = 64
@@ -192,7 +192,7 @@ def resnet(**kwargs):
     num_classes, depth, dataset = map(
         kwargs.get, ['num_classes', 'depth', 'dataset'])
     if dataset == 'imagenet':
-        num_classes = num_classes or 1000
+        num_classes = num_classes or 200
         depth = depth or 50
         if depth == 18:
             return ResNet_imagenet(num_classes=num_classes,

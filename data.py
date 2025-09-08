@@ -2,7 +2,7 @@ import os
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 
-_DATASETS_MAIN_PATH = '/home/Datasets'
+_DATASETS_MAIN_PATH = '/home/aesop/BNN/Gradient_based/BinaryNet.pytorch/Datasets'
 _dataset_path = {
     'cifar10': os.path.join(_DATASETS_MAIN_PATH, 'CIFAR10'),
     'cifar100': os.path.join(_DATASETS_MAIN_PATH, 'CIFAR100'),
