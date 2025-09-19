@@ -61,6 +61,32 @@ CIFAR10_CLASSES = [
 "ship", # 8
 "truck" # 9
 ]
+import matplotlib.pyplot as plt
+import numpy as np
+# --------------------
+# 視覺化
+# --------------------
+def tensor_to_img(t):
+    """把 (C,H,W) tensor 轉成 numpy image"""
+    t = t.squeeze().cpu().detach().numpy()
+    if t.ndim == 3:
+        t = np.transpose(t, (1, 2, 0))
+    return t
+
+def normalize_attr(attr):
+    attr = attr.squeeze().cpu().detach().numpy()
+    # min-max normalization 到 [0,1]
+    attr = (attr - attr.min()) / (attr.max() - attr.min() + 1e-8)
+    if attr.ndim == 3:
+        attr = np.transpose(attr, (1, 2, 0))
+    return attr
+
+def clamp_attr(attr):
+    attr = attr.squeeze().cpu().detach().numpy()
+    threshold = np.percentile(np.abs(attr), 99)
+    attr = np.clip(attr, -threshold, threshold)
+    
+    return attr
 
 import numpy as np
 # === Function: 測試單張影像 (batch 版本) ===
@@ -133,8 +159,30 @@ def generate_result(model, testset, indices,type):
 
                 results.append((img_raw, pred_orig, label, change_mask, statistics, example))
                 break
-    
+            
+    from captum.attr import IntegratedGradients, Saliency, NoiseTunnel
+    from captum.attr import visualization as viz
+    from captum.attr import LayerGradCam
 
+    
+    saliency = Saliency(model)
+
+
+    # Integrated Gradients
+    ig = IntegratedGradients(model)
+
+
+    # SmoothGrad (基於 Saliency)
+    smoothgrad = NoiseTunnel(saliency)
+
+
+    # 可以用 list(model.children()) 找到正確的 layer
+    if type == "real":
+        layer_gc = LayerGradCam(model, list(model.children())[-3][-1].conv2)
+    else:
+        print("no layer gradcam for binary model")
+        exit(0)
+        
     # === 視覺化幾張 sample ===
     num_show = len(results)
     plt.figure(figsize=(15, 24))
@@ -142,7 +190,7 @@ def generate_result(model, testset, indices,type):
     for idx in range(num_show):
         img_raw, pred_orig, label, change_mask, statistics, example = results[idx]
         
-        plt.subplot(5, 5, idx * 5 + 1)
+        plt.subplot(5, 6, idx * 6 + 1)
         plt.imshow(img_raw.permute(1,2,0).numpy())
         plt.title(f"Image: Pred={CIFAR10_CLASSES[pred_orig]}, True={CIFAR10_CLASSES[label]}")
         plt.axis("off")
@@ -150,7 +198,7 @@ def generate_result(model, testset, indices,type):
         mask_rgb = np.zeros((32,32,3))
         mask_rgb[...,0] = change_mask.numpy()
         overlay = 0.7*img_raw.permute(1,2,0).numpy() + 0.3*mask_rgb
-        plt.subplot(5, 5, idx * 5 + 2)
+        plt.subplot(5, 6, idx * 6 + 2)
         plt.imshow(overlay)
         rank = sorted(statistics.items(), key=lambda x: x[1], reverse=True)[:3]
         if rank[1][1] == 0 and rank[2][1] == 0: 
@@ -161,15 +209,56 @@ def generate_result(model, testset, indices,type):
             plt.title(f"top3: {CIFAR10_CLASSES[rank[0][0]]}, {CIFAR10_CLASSES[rank[1][0]]}, {CIFAR10_CLASSES[rank[2][0]]}")
         plt.axis("off")
         
-        random.shuffle(example)
-        for j in range(min(3, len(example))):
-            cls, img_mod = example[j]
-            plt.subplot(5, 5, idx * 5 + 3 + j)
-            plt.imshow(denormalize(img_mod).permute(1,2,0).cpu().numpy())
-            plt.title(f"Pred={CIFAR10_CLASSES[cls]}")
-            plt.axis("off")
+        x = normalize(img_raw).unsqueeze(0).requires_grad_()
+        y = label
+        pred = pred_orig
+
+        # Attribution
+        attr_grad = saliency.attribute(x, target=pred)
+        mean = torch.tensor([0.4914, 0.4822, 0.4465]).view(1, 3, 1, 1)
+        mean_img = mean.expand(1, 3, 32, 32).to("cuda")
+        attr_ig = ig.attribute(x, target=y, n_steps=300)
+        attr_sg = smoothgrad.attribute(x, nt_type="smoothgrad", nt_samples=500, stdevs=0.1, target=pred)
+        attr_gc = layer_gc.attribute(x, target=pred)
+        attr_gc = F.interpolate(attr_gc, size=(32, 32), mode='bilinear', align_corners=False)
+
+        attr_grad = clamp_attr(attr_grad)
+        attr_ig = clamp_attr(attr_ig)
+        attr_sg = clamp_attr(attr_sg)
+        attr_gc = clamp_attr(attr_gc)
+        
+        plt.subplot(5, 6, idx * 6 + 3)
+        attr_grad = torch.tensor(attr_grad)
+        attr_grad = attr_grad.abs().max(dim=0)[0]
+        plt.imshow(tensor_to_img(attr_grad), cmap="gray")
+        plt.title("Gradient", fontsize=15)
+        plt.axis("off")
+
+        plt.subplot(5, 6, idx * 6 + 4)
+        attr_ig = torch.tensor(attr_ig)
+        attr_ig = attr_ig.abs().max(dim=0)[0]
+        plt.imshow(tensor_to_img(attr_ig), cmap="gray")
+        plt.title("Integrated Gradients", fontsize=15)
+        plt.axis("off")
+
+
+        plt.subplot(5, 6, idx * 6 + 5)
+        attr_sg = torch.tensor(attr_sg)
+        attr_sg = attr_sg.abs().max(dim=0)[0]
+        plt.imshow(tensor_to_img(attr_sg), cmap="gray")
+        plt.title("SmoothGrad", fontsize=15)
+        plt.axis("off")
+
+
+        plt.subplot(5, 6, idx * 6 + 6)
+        attr_gc = torch.tensor(attr_gc)
+        plt.imshow(img_raw.permute(1,2,0).numpy())
+        plt.imshow(tensor_to_img(attr_gc), cmap="seismic",alpha=0.5)
+        plt.title("GradCAM", fontsize=15)
+        plt.axis("off")
+        
     plt.tight_layout()
-    plt.savefig(f"pixel_change_analysis_{type}.png")
+    plt.savefig(f"pixel_change_vs_GD_{type}.png")
 
 
 generate_result(model_real, cifar100_raw, indices, "real")

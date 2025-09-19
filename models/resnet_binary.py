@@ -144,8 +144,8 @@ class ResNet(nn.Module):
         x = self.bn2(x)
         x = self.tanh2(x)
         x = self.fc(x)
-        x = self.bn3(x)
-        x = self.logsoftmax(x)
+        # x = self.bn3(x)
+        # x = self.logsoftmax(x)
 
         return x
 
