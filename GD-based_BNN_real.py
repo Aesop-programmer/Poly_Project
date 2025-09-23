@@ -93,12 +93,20 @@ def generate_diiferent_examples(model, testset, type):
     match type:
         case "best5":
             scores = []
+            
+            
             for i in range(len(testset)):
                 x = testset[i][0].unsqueeze(0).to("cuda")
                 y = testset[i][1]
+                
                 with torch.no_grad():
                     scores.append(model(x).max(1)[0].item())
-            indices = [scores.index(x) for x in sorted(scores, reverse=True)[:5]]
+            # 把每個分數和對應 index 綁在一起
+            scored_indices = list(enumerate(scores))  # [(0, score0), (1, score1), ...]
+            # 按分數排序
+            scored_indices.sort(key=lambda x: x[1], reverse=True)
+            # 取前 5 個 index
+            indices = [idx for idx, _ in scored_indices[:5]]
         case "worst5":
             scores = []
             for i in range(len(testset)):
@@ -106,7 +114,12 @@ def generate_diiferent_examples(model, testset, type):
                 y = testset[i][1]
                 with torch.no_grad():
                     scores.append(model(x).max(1)[0].item())
-            indices = [scores.index(x) for x in sorted(scores)[:5]]
+            # 把每個分數和對應 index 綁在一起
+            scored_indices = list(enumerate(scores))  # [(0, score0), (1, score1), ...]
+            # 按分數排序
+            scored_indices.sort(key=lambda x: x[1], reverse=False)
+            # 取前 5 個 index
+            indices = [idx for idx, _ in scored_indices[:5]]
         case "random5":
             import random
             indices = random.sample(range(0, len(testset)), 5)
@@ -212,5 +225,7 @@ def generate_diiferent_examples(model, testset, type):
     plt.tight_layout()
     plt.savefig(f"attribution_results_{type}.png")
 generate_diiferent_examples(model, testset, "best5")
+print("best5 done")
 generate_diiferent_examples(model, testset, "worst5")
+print("worst5 done")
 generate_diiferent_examples(model, testset, "random5")

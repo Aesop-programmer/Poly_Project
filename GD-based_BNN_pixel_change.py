@@ -19,10 +19,13 @@ transform = transforms.Compose([
 
 
 # === 2) Model ===
-# model = models.__dict__["resnet_binary"]
-# model_config = {'input_size': 32, 'dataset': "cifar10"}
-# model = model(**model_config)
-# checkpoint = torch.load("/home/aesop/BNN/Gradient_based/BinaryNet.pytorch/results/2025-08-30_03-10-40/model_best.pth.tar")
+model_bin = models.__dict__["resnet_binary"]
+model_config = {'input_size': 32, 'dataset': "cifar10"}
+model_bin = model_bin(**model_config)
+checkpoint = torch.load("C:/Users/abc09/Desktop/master/蒙特婁理工大學實習/Poly_Project/model_best_cifar10_bin_w_bn.pth.tar")
+model_bin.load_state_dict(checkpoint['state_dict'])
+model_bin.eval()
+
 model_real = models.__dict__["resnet"]
 model_config = {'input_size': 32, 'dataset': "cifar10"}
 model_real = model_real(**model_config)
@@ -172,4 +175,6 @@ def generate_result(model, testset, indices,type):
     plt.savefig(f"pixel_change_analysis_{type}.png")
 
 
-generate_result(model_real, cifar100_raw, indices, "real")
+# generate_result(model_real, cifar100_raw, indices, "real")
+# generate_result(model_bin, cifar100_raw, indices, "binary_wo_bn")
+generate_result(model_bin, cifar100_raw, indices, "binary_w_bn")
