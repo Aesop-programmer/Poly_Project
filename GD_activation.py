@@ -110,17 +110,22 @@ print("Saved: results_grad_compare_w_bn/input_image.png")
 # === 5) Forward + Backward ===
 criterion = nn.CrossEntropyLoss()
 
-out_bin = model_bin(image)
-out_real = model_real(image)
+model_bin.eval()
+model_real.eval()
 
-loss_bin = criterion(out_bin, torch.tensor([label]))
-loss_real = criterion(out_real, torch.tensor([label]))
+with torch.set_grad_enabled(True):   # 確保 autograd 啟用
+    out_bin = model_bin(image)
+    out_real = model_real(image)
+
+    loss_bin = criterion(out_bin, torch.tensor([label]))
+    loss_real = criterion(out_real, torch.tensor([label]))
 
 model_bin.zero_grad()
 model_real.zero_grad()
 
 loss_bin.backward()
 loss_real.backward()
+
 
 
 # === 6) 壓縮梯度方法 ===
@@ -204,6 +209,7 @@ def save_all_gradients(tensor, layer_name, model_type, save_root="results_grad_c
             print(grad_map)
         else:
             plt.title(f"{layer_name} | {model_type} | grad ch={ch}")
+        
         plt.colorbar(fraction=0.046, pad=0.04)
         save_path = os.path.join(save_dir, f"grad_ch_{ch}.png")
         plt.savefig(save_path, bbox_inches="tight", dpi=150)
