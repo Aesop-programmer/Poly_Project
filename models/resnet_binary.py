@@ -144,10 +144,11 @@ class ResNet(nn.Module):
         x = self.bn2(x)
         x = self.tanh2(x)
         x = self.fc(x)
-        # x = self.bn3(x)
+        x = self.bn3(x)
         # x = self.logsoftmax(x)
         # x = self.featurenorm(x)
         # x = x / self.T
+        # x = x + self.minus
         # x = x - x.max(1, keepdim=True)[0]
         return x
 
@@ -187,7 +188,7 @@ class ResNet_imagenet(ResNet):
 class ResNet_cifar10(ResNet):
 
     def __init__(self, num_classes=10,
-                 block=BasicBlock, depth=34):
+                 block=BasicBlock, depth=18):
         super(ResNet_cifar10, self).__init__()
         self.inflate = 5
         self.inplanes = 16*self.inflate
@@ -255,6 +256,6 @@ def resnet_binary(**kwargs):
 
     elif dataset == 'cifar10':
         num_classes = num_classes or 10
-        depth = depth or 34
+        depth = depth or 18
         return ResNet_cifar10(num_classes=num_classes,
                               block=BasicBlock, depth=depth)
