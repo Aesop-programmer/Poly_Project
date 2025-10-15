@@ -189,8 +189,10 @@ def plot_pixel_response_relative(
     plt.close()
 
 # === Example usage ===
-indices = [123]
+indices = [123,1252,1256,1383,2372,2453,2477,3618,3973,4307,4551,4825,4954,5988,6685,6790,8698,8736,8990,9385,9552]
 for idx in indices:
+    img_raw, label = cifar10_test[idx]
+    x_orig = normalize(img_raw).unsqueeze(0).to(device)
     for ch in range(1):
         for c in range(32):
             for r in range(32):
